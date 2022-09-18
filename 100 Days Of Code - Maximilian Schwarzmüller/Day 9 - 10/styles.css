@@ -67,6 +67,7 @@ footer p {
 
 footer a {
 	padding: 12px 20px;
+	font-weight: 600;
 	border-radius: 8px;
 	background-color: rgb(250, 201, 39);
 	color: rgb(66, 51, 4);
@@ -80,8 +81,4 @@ footer a:active {
 .extra-imp {
 	color: rgb(255, 237, 177);
 	border-color: rgb(247, 209, 85);
-}
-
-.highlight {
-	font-weight: bold;
 }
