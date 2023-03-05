@@ -97,15 +97,26 @@ class Project {
 }
 
 // Project State Management
-type Listener = (items: Project[]) => void;
+type Listener<T> = (items: T[]) => void;
 
-class ProjectState {
+abstract class State<T> {
+	protected listeners: Listener<T>[] = [];
+
+	// method to add a listener
+	addListener(listenerFn: Listener<T>) {
+		this.listeners.push(listenerFn);
+	}
+}
+
+class ProjectState extends State<Project> {
 	private projects: Project[] = [];
-	private listeners: Listener[] = [];
+	// private listeners: Listener[] = [];
 	private static instance: ProjectState;
 
 	// Singleton class constructor
-	private constructor() {}
+	private constructor() {
+		super();
+	}
 
 	// method to get the instance of the class
 	static getInstance() {
@@ -134,39 +145,102 @@ class ProjectState {
 		}
 	}
 
-	// method to add a listener
-	addListener(listenerFn: Listener) {
-		this.listeners.push(listenerFn);
-	}
+	// // method to add a listener
+	// addListener(listenerFn: Listener<Project>) {
+	// 	this.listeners.push(listenerFn);
+	// }
 }
 
 const projectState = ProjectState.getInstance();
 
-class ProjectList {
+/**
+ * Base Component class
+ *
+ * A base class (Abstract class) to be extended by other classes
+ */
+abstract class Component<T extends HTMLElement, U extends HTMLElement> {
 	templateElement: HTMLTemplateElement;
-	hostElement: HTMLDivElement;
-	element: HTMLElement;
-	assignedProjects: Project[];
+	hostElement: T;
+	element: U;
 
-	constructor(private type: "active" | "finished") {
+	constructor(
+		templateId: string,
+		hostElementId: string,
+		insertAtStart: boolean,
+		newElementId?: string
+	) {
 		// get the template element from the DOM
 		this.templateElement = document.getElementById(
-			"project-list"
+			templateId
 		)! as HTMLTemplateElement;
 		// get the div element with id app from the DOM
-		this.hostElement = document.getElementById("app")! as HTMLDivElement;
-		this.assignedProjects = [];
-
+		this.hostElement = document.getElementById(hostElementId)! as T;
 		// get the deep copy of content of the template element
 		const importedNode = document.importNode(
 			this.templateElement.content,
 			true
 		);
 		// get the first element of the imported node
-		this.element = importedNode.firstElementChild as HTMLElement;
-		// set the id of the element to active-projects or finished-projects
-		this.element.id = `${this.type}-projects`;
+		this.element = importedNode.firstElementChild as U;
+		// set the id of the element to the new element id
+		if (newElementId) {
+			this.element.id = newElementId;
+		}
 
+		// attach the element to the host element
+		this.attach(insertAtStart);
+	}
+
+	// method to attach the element to the host element
+	private attach(insertAtBeginning: boolean) {
+		this.hostElement.insertAdjacentElement(
+			insertAtBeginning ? "afterbegin" : "beforeend",
+			this.element
+		);
+	}
+
+	// method to abstract the configure method
+	abstract configure(): void;
+	// method to abstract the render content method
+	abstract renderContent(): void;
+}
+
+class ProjectList extends Component<HTMLDivElement, HTMLElement> {
+	assignedProjects: Project[];
+
+	constructor(private type: "active" | "finished") {
+		super("project-list", "app", false, `${type}-projects`);
+
+		// // get the template element from the DOM
+		// this.templateElement = document.getElementById(
+		// 	"project-list"
+		// )! as HTMLTemplateElement;
+		// // get the div element with id app from the DOM
+		// this.hostElement = document.getElementById("app")! as HTMLDivElement;
+		this.assignedProjects = [];
+
+		// // get the deep copy of content of the template element
+		// const importedNode = document.importNode(
+		// 	this.templateElement.content,
+		// 	true
+		// );
+		// // get the first element of the imported node
+		// this.element = importedNode.firstElementChild as HTMLElement;
+		// // set the id of the element to active-projects or finished-projects
+		// this.element.id = `${this.type}-projects`;
+
+		// attach the element to the DOM
+		// this.attach();
+
+		// configure the element
+		this.configure();
+
+		// render the content
+		this.renderContent();
+	}
+
+	// method to configure the element
+	configure() {
 		// get the projects from the project state
 		projectState.addListener((projects: Project[]) => {
 			// filter the projects based on the type
@@ -181,11 +255,6 @@ class ProjectList {
 			// call the renderProjects method
 			this.renderProjects();
 		});
-
-		// attach the element to the DOM
-		this.attach();
-		// render the content
-		this.renderContent();
 	}
 
 	// method to render the projects
@@ -205,44 +274,43 @@ class ProjectList {
 	}
 
 	// method to render the content
-	private renderContent() {
+	renderContent() {
 		const listId = `${this.type}-projects-list`;
 		this.element.querySelector("ul")!.id = listId;
 		this.element.querySelector("h2")!.textContent =
 			this.type.toUpperCase() + " PROJECTS";
 	}
 
-	// method to attach the element to the DOM
-	private attach() {
-		this.hostElement.insertAdjacentElement("beforeend", this.element);
-	}
+	// // method to attach the element to the DOM
+	// private attach() {
+	// 	this.hostElement.insertAdjacentElement("beforeend", this.element);
+	// }
 }
 
-class ProjectInput {
-	templateElement: HTMLTemplateElement;
-	hostElement: HTMLDivElement;
-	element: HTMLFormElement;
+class ProjectInput extends Component<HTMLDivElement, HTMLFormElement> {
 	titleInputElement: HTMLInputElement;
 	descriptionInputElement: HTMLInputElement;
 	peopleInputElement: HTMLInputElement;
 
 	constructor() {
-		// get the template element from the DOM
-		this.templateElement = document.getElementById(
-			"project-input"
-		)! as HTMLTemplateElement;
-		// get the div element with id app from the DOM
-		this.hostElement = document.getElementById("app")! as HTMLDivElement;
+		super("project-input", "app", true, "user-input");
 
-		// get the deep copy of content of the template element
-		const importedNode = document.importNode(
-			this.templateElement.content,
-			true // deep copy
-		);
-		// get the first element of the imported node
-		this.element = importedNode.firstElementChild as HTMLFormElement;
-		// set the id of the form to user-input
-		this.element.id = "user-input";
+		// // get the template element from the DOM
+		// this.templateElement = document.getElementById(
+		// 	"project-input"
+		// )! as HTMLTemplateElement;
+		// // get the div element with id app from the DOM
+		// this.hostElement = document.getElementById("app")! as HTMLDivElement;
+
+		// // get the deep copy of content of the template element
+		// const importedNode = document.importNode(
+		// 	this.templateElement.content,
+		// 	true // deep copy
+		// );
+		// // get the first element of the imported node
+		// this.element = importedNode.firstElementChild as HTMLFormElement;
+		// // set the id of the form to user-input
+		// this.element.id = "user-input";
 
 		// get the input elements from the form
 		this.titleInputElement = this.element.querySelector(
@@ -258,8 +326,11 @@ class ProjectInput {
 		// configure the form
 		this.configure();
 
-		// attach the form to the DOM
-		this.attach();
+		// render the content
+		this.renderContent();
+
+		// // attach the form to the DOM
+		// this.attach();
 	}
 
 	private gatherUserInput(): [string, string, number] | void {
@@ -323,15 +394,19 @@ class ProjectInput {
 		}
 	}
 
-	private configure() {
+	// method to configure the form
+	configure() {
 		// add event listener to the form
 		this.element.addEventListener("submit", this.submitHandler);
 	}
 
-	// method to attach the form to the DOM
-	private attach() {
-		this.hostElement.insertAdjacentElement("afterbegin", this.element);
-	}
+	// method to render the content
+	renderContent() {}
+
+	// // method to attach the form to the DOM
+	// private attach() {
+	// 	this.hostElement.insertAdjacentElement("afterbegin", this.element);
+	// }
 }
 
 const prjInput = new ProjectInput();
